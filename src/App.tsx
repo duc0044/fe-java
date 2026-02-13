@@ -47,17 +47,17 @@ const ProtectedLayout = ({ children, requireAdmin = false }: { children: React.R
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-medium text-slate-500">Đang khởi tạo ứng dụng...</div>;
 
-  const isAdmin = profile?.email === 'admin@admin.com' ||
+  const hasAdminAccess = profile?.email === 'admin@admin.com' ||
     (profile?.roles && (Array.isArray(profile.roles)
-      ? profile.roles.includes('ROLE_ADMIN')
-      : profile.roles === 'ROLE_ADMIN'
+      ? (profile.roles.includes('ROLE_ADMIN') || profile.roles.includes('ROLE_STAFF'))
+      : (profile.roles === 'ROLE_ADMIN' || profile.roles === 'ROLE_STAFF')
     ));
 
-  if (requireAdmin && !isAdmin) {
+  if (requireAdmin && !hasAdminAccess) {
     return <Navigate to="/" replace />;
   }
 
-  if (isAdmin) {
+  if (hasAdminAccess) {
     return <AdminLayout username={profile?.username || (profile as any).userName}>{children}</AdminLayout>;
   }
 

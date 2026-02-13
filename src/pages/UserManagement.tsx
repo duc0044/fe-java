@@ -43,6 +43,7 @@ interface User {
     username: string;
     email: string;
     roles?: string | string[];
+    permissions?: string;
 }
 
 const UserManagement = () => {
@@ -64,7 +65,8 @@ const UserManagement = () => {
         username: '',
         email: '',
         password: '',
-        roles: 'ROLE_USER'
+        roles: 'ROLE_USER',
+        permissions: ''
     });
     const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -128,19 +130,23 @@ const UserManagement = () => {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await authService.createUser(formData);
+            await authService.createUser({
+                ...formData,
+                permissions: formData.permissions ? formData.permissions : null
+            });
             setIsCreateDialogOpen(false);
-            setFormData({ username: '', email: '', password: '', roles: 'ROLE_USER' });
+            setFormData({ username: '', email: '', password: '', roles: 'ROLE_USER', permissions: '' });
             toast({
                 title: "Thành công",
                 description: "Tạo người dùng thành công",
                 variant: "success",
             });
             fetchUsers();
-        } catch (error) {
+        } catch (error: any) {
+            const message = error.response?.data?.message || "Lỗi khi tạo người dùng";
             toast({
                 title: "Lỗi",
-                description: "Lỗi khi tạo người dùng",
+                description: message,
                 variant: "destructive",
             });
         }
@@ -153,20 +159,22 @@ const UserManagement = () => {
             await authService.updateUser(editingUser.id, {
                 username: formData.username,
                 email: formData.email,
-                roles: formData.roles // Cập nhật roles
+                roles: formData.roles, // Cập nhật roles
+                permissions: formData.permissions ? formData.permissions : null // Cập nhật permissions, nếu rỗng thì gửi null
             });
             setEditingUser(null);
-            setFormData({ username: '', email: '', password: '', roles: 'ROLE_USER' });
+            setFormData({ username: '', email: '', password: '', roles: 'ROLE_USER', permissions: '' });
             toast({
                 title: "Thành công",
                 description: "Cập nhật thông tin thành công",
                 variant: "success",
             });
             fetchUsers();
-        } catch (error) {
+        } catch (error: any) {
+            const message = error.response?.data?.message || "Lỗi khi cập nhật";
             toast({
                 title: "Lỗi",
-                description: "Lỗi khi cập nhật",
+                description: message,
                 variant: "destructive",
             });
         }
@@ -201,8 +209,19 @@ const UserManagement = () => {
             else if (rolesArr.includes('ROLE_STAFF')) currentRole = 'ROLE_STAFF';
             else if (rolesArr.length > 0) currentRole = rolesArr[0];
         }
-        setFormData({ username: user.username, email: user.email, password: '', roles: currentRole });
+        setFormData({
+            username: user.username,
+            email: user.email,
+            password: '',
+            roles: currentRole,
+            permissions: user.permissions || '' // Load current permissions
+        });
     };
+
+    const isCurrentUserAdmin = currentUser?.roles && (Array.isArray(currentUser.roles)
+        ? currentUser.roles.includes('ROLE_ADMIN')
+        : currentUser.roles === 'ROLE_ADMIN'
+    );
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -257,6 +276,42 @@ const UserManagement = () => {
                                         <option value="ROLE_ADMIN">Quản trị viên (ADMIN)</option>
                                     </select>
                                 </div>
+                                {isCurrentUserAdmin && formData.roles === 'ROLE_STAFF' && (
+                                    <div className="grid gap-2">
+                                        <Label>Quyền hạn (tùy chọn)</Label>
+                                        <div className="flex flex-wrap gap-4 mt-2">
+                                            {['user:read', 'user:create', 'user:update', 'user:delete'].map((perm) => (
+                                                <div key={perm} className="flex items-center space-x-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`new-perm-${perm}`}
+                                                        className="h-4 w-4 rounded border-slate-300 text-slate-800 focus:ring-slate-800"
+                                                        checked={formData.permissions ? formData.permissions.split(',').includes(perm) : false}
+                                                        onChange={(e) => {
+                                                            const currentPerms = formData.permissions ? formData.permissions.split(',').filter(p => p !== '') : [];
+                                                            let newPerms;
+                                                            if (e.target.checked) {
+                                                                newPerms = [...currentPerms, perm];
+                                                            } else {
+                                                                newPerms = currentPerms.filter(p => p !== perm);
+                                                            }
+                                                            setFormData({ ...formData, permissions: newPerms.join(',') });
+                                                        }}
+                                                    />
+                                                    <label
+                                                        htmlFor={`new-perm-${perm}`}
+                                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                    >
+                                                        {perm}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-1">
+                                            Chọn các quyền hạn cụ thể để gán cho nhân viên này.
+                                        </p>
+                                    </div>
+                                )}
                                 <DialogFooter>
                                     <Button type="submit">Lưu thay đổi</Button>
                                 </DialogFooter>
@@ -305,10 +360,10 @@ const UserManagement = () => {
                 <Table>
                     <TableHeader className="bg-slate-50">
                         <TableRow>
-                            <TableHead className="w-[100px]">ID</TableHead>
+                            <TableHead className="w-[80px]">ID</TableHead>
                             <TableHead>Người dùng</TableHead>
                             <TableHead>Email</TableHead>
-                            <TableHead>Vai trò</TableHead>
+                            <TableHead>Vai trò & Quyền</TableHead>
                             <TableHead className="text-right">Thao tác</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -332,28 +387,35 @@ const UserManagement = () => {
                                     <TableCell className="font-bold text-slate-700">{user.username || (user as any).userName || "N/A"}</TableCell>
                                     <TableCell className="text-slate-500 font-medium">{user.email || (user as any).userEmail || "N/A"}</TableCell>
                                     <TableCell>
-                                        <div className="flex gap-1">
-                                            {(() => {
-                                                const rolesArray = Array.isArray(user.roles)
-                                                    ? user.roles
-                                                    : (typeof user.roles === 'string' ? [user.roles] : []);
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex gap-1">
+                                                {(() => {
+                                                    const rolesArray = Array.isArray(user.roles)
+                                                        ? user.roles
+                                                        : (typeof user.roles === 'string' ? [user.roles] : []);
 
-                                                return rolesArray.length > 0 ? (
-                                                    rolesArray.map((role, rIdx) => {
-                                                        let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-                                                        if (role === 'ROLE_ADMIN') variant = "destructive";
-                                                        if (role === 'ROLE_STAFF') variant = "default"; // Use default (black/primary) for staff
+                                                    return rolesArray.length > 0 ? (
+                                                        rolesArray.map((role, rIdx) => {
+                                                            let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+                                                            if (role === 'ROLE_ADMIN') variant = "destructive";
+                                                            if (role === 'ROLE_STAFF') variant = "default"; // Use default (black/primary) for staff
 
-                                                        return (
-                                                            <Badge key={`${role}-${rIdx}`} variant={variant} className="text-[10px]">
-                                                                {role}
-                                                            </Badge>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <Badge variant="outline" className="text-[10px]">ROLE_USER</Badge>
-                                                );
-                                            })()}
+                                                            return (
+                                                                <Badge key={`${role}-${rIdx}`} variant={variant} className="text-[10px]">
+                                                                    {role}
+                                                                </Badge>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-[10px]">ROLE_USER</Badge>
+                                                    );
+                                                })()}
+                                            </div>
+                                            {user.permissions && (
+                                                <div className="text-xs text-slate-500 font-mono">
+                                                    + {user.permissions.split(',').join(', ')}
+                                                </div>
+                                            )}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -435,7 +497,7 @@ const UserManagement = () => {
                     <DialogHeader>
                         <DialogTitle>Chỉnh sửa người dùng</DialogTitle>
                         <DialogDescription>
-                            Cập nhật thông tin cho <strong>{editingUser?.username}</strong>.
+                            Cập nhật thông tin và quyền hạn cho <strong>{editingUser?.username}</strong>.
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleUpdate} className="grid gap-4 py-4">
@@ -460,6 +522,42 @@ const UserManagement = () => {
                                 <option value="ROLE_ADMIN">Quản trị viên (ADMIN)</option>
                             </select>
                         </div>
+                        {isCurrentUserAdmin && formData.roles === 'ROLE_STAFF' && (
+                            <div className="grid gap-2">
+                                <Label>Quyền hạn (tùy chọn)</Label>
+                                <div className="flex flex-wrap gap-4 mt-2">
+                                    {['user:read', 'user:create', 'user:update', 'user:delete'].map((perm) => (
+                                        <div key={perm} className="flex items-center space-x-2">
+                                            <input
+                                                type="checkbox"
+                                                id={`perm-${perm}`}
+                                                className="h-4 w-4 rounded border-slate-300 text-slate-800 focus:ring-slate-800"
+                                                checked={formData.permissions ? formData.permissions.split(',').includes(perm) : false}
+                                                onChange={(e) => {
+                                                    const currentPerms = formData.permissions ? formData.permissions.split(',').filter(p => p !== '') : [];
+                                                    let newPerms;
+                                                    if (e.target.checked) {
+                                                        newPerms = [...currentPerms, perm];
+                                                    } else {
+                                                        newPerms = currentPerms.filter(p => p !== perm);
+                                                    }
+                                                    setFormData({ ...formData, permissions: newPerms.join(',') });
+                                                }}
+                                            />
+                                            <label
+                                                htmlFor={`perm-${perm}`}
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                                {perm}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-1">
+                                    Chọn các quyền hạn cụ thể để gán cho người dùng này.
+                                </p>
+                            </div>
+                        )}
                         <DialogFooter>
                             <Button type="submit">Cập nhật</Button>
                         </DialogFooter>
