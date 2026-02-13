@@ -13,7 +13,7 @@ export const authService = {
         window.location.href = '/login';
     },
     triggerGoogleLogin: () => {
-        window.location.href = '/api/auth/oauth2/authorization/google';
+        window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/oauth2/authorization/google`;
     },
     getProfile: async () => {
         return api.get('/api/auth/me');
