@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  fe-java:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8080
+    container_name: fe_java
+    ports:
+      - "3000:80"
+    restart: always
