@@ -1,4 +1,5 @@
 import api from '../api/axiosInstance';
+import { useAuthStore } from '../stores/authStore';
 
 export const authService = {
     // Auth endpoints
@@ -9,7 +10,7 @@ export const authService = {
         return api.post('/api/auth/login', credentials);
     },
     logout: () => {
-        localStorage.clear();
+        useAuthStore.getState().logout();
         window.location.href = '/login';
     },
     triggerGoogleLogin: () => {

@@ -1,28 +1,64 @@
 import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { authService } from "@/services/authService";
+import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, Settings, LogOut, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, ShieldCheck, Key, Shield } from "lucide-react";
+import { hasMinimumRole, getRoleLabel } from "@/lib/permissions";
+import type { Role } from "@/lib/permissions";
 
 interface AdminLayoutProps {
     children: React.ReactNode;
     username?: string;
 }
 
+interface MenuItem {
+    name: string;
+    icon: React.ComponentType<{ size: number }>;
+    path: string;
+    requiredRole?: Role;
+    requiredPermission?: string;
+}
+
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { userProfile } = useAuthStore();
 
     const handleLogout = () => {
         authService.logout();
         navigate("/login");
     };
 
-    const menuItems = [
-        { name: "Dashboard", icon: LayoutDashboard, path: "/" },
-        { name: "Người dùng", icon: Users, path: "/admin/users" },
-        { name: "Cài đặt", icon: Settings, path: "/admin/settings" },
+    const allMenuItems: MenuItem[] = [
+        { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+        { name: "Người dùng", icon: Users, path: "/admin/users", requiredPermission: "user:create" },
+        { name: "Vai trò", icon: Shield, path: "/admin/roles", requiredPermission: "role:manage" },
+        { name: "Quyền hạn", icon: Key, path: "/admin/permissions", requiredPermission: "role:manage" },
+        { name: "Cài đặt", icon: Settings, path: "/admin/settings", requiredPermission: "system:config" },
     ];
+
+    // Lọc menu items dựa trên quyền từ API hoặc role
+    const userRoles = (Array.isArray(userProfile?.roles) ? userProfile?.roles : [userProfile?.roles]) as Role[];
+    const menuItems = allMenuItems.filter(item => {
+        if (!item.requiredPermission && !item.requiredRole) return true;
+
+        // Ưu tiên kiểm tra permissions từ API trước
+        if (item.requiredPermission) {
+            if (userProfile?.permissions && Array.isArray(userProfile.permissions)) {
+                return userProfile.permissions.includes(item.requiredPermission);
+            }
+            // Fallback: không có API permissions, không hiển thị
+            return false;
+        }
+
+        // Fallback: kiểm tra role nếu không có permission requirement
+        if (item.requiredRole) {
+            return hasMinimumRole(userRoles, item.requiredRole);
+        }
+
+        return true;
+    });
 
     return (
         <div className="min-h-screen bg-slate-50 flex">
@@ -41,8 +77,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
                             key={item.path}
                             to={item.path}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === item.path
-                                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
-                                    : "hover:bg-slate-800 hover:text-white"
+                                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+                                : "hover:bg-slate-800 hover:text-white"
                                 }`}
                         >
                             <item.icon size={20} />
@@ -58,7 +94,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
                         </div>
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-bold text-white truncate">{username}</p>
-                            <p className="text-xs text-slate-500">Administrator</p>
+                            <p className="text-xs text-slate-500">{userProfile && getRoleLabel(userRoles[0] || 'ROLE_USER')}</p>
                         </div>
                     </div>
                     <Button

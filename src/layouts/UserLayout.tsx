@@ -1,7 +1,10 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/services/authService";
+import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
+import { getRoleLabel } from "@/lib/permissions";
+import type { Role } from "@/lib/permissions";
 
 interface UserLayoutProps {
     children: React.ReactNode;
@@ -10,11 +13,15 @@ interface UserLayoutProps {
 
 const UserLayout: React.FC<UserLayoutProps> = ({ children, username }) => {
     const navigate = useNavigate();
+    const { userProfile } = useAuthStore();
 
     const handleLogout = () => {
         authService.logout();
         navigate("/login");
     };
+
+    const userRoles = (Array.isArray(userProfile?.roles) ? userProfile?.roles : [userProfile?.roles]) as Role[];
+    const roleLabel = userRoles ? getRoleLabel(userRoles[0] || 'ROLE_USER') : 'Người dùng';
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -24,7 +31,7 @@ const UserLayout: React.FC<UserLayoutProps> = ({ children, username }) => {
                 </h1>
                 <div className="flex items-center gap-4">
                     <div className="text-sm font-medium text-slate-600 px-3 py-1 bg-slate-100 rounded-full">
-                        {username || "User"}
+                        {username || "User"} <span className="text-xs text-slate-500 ml-1">({roleLabel})</span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={handleLogout}>
                         Đăng xuất

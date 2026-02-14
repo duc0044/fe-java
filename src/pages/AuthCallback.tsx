@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '@/stores/authStore';
 
 const AuthCallback = () => {
     const navigate = useNavigate();
@@ -11,8 +12,7 @@ const AuthCallback = () => {
         const refreshToken = params.get('refreshToken');
 
         if (accessToken && refreshToken) {
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
+            useAuthStore.getState().setTokens(accessToken, refreshToken);
             navigate('/');
         } else {
             navigate('/login?error=oauth_failed');

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { authService } from '@/services/authService';
 import { useToast } from "@/hooks/use-toast";
+import { PermissionGuard } from '@/components/PermissionGuard';
 import {
     Table,
     TableBody,
@@ -42,9 +43,16 @@ interface User {
     id: number;
     username: string;
     email: string;
-    roles?: string | string[];
-    permissions?: string;
+    roles?: string[];
+    permissions?: string[];
 }
+
+const PERMISSION_CATEGORIES = {
+    'User Management': ['user:read', 'user:create', 'user:update', 'user:delete'],
+    'Report Management': ['report:read', 'report:create', 'report:update', 'report:delete', 'report:export'],
+    'Order Management': ['order:read', 'order:create', 'order:update', 'order:delete', 'order:approve'],
+    'System Management': ['audit:read', 'system:config', 'role:manage']
+};
 
 const UserManagement = () => {
     const [users, setUsers] = useState<User[]>([]);
@@ -65,8 +73,8 @@ const UserManagement = () => {
         username: '',
         email: '',
         password: '',
-        roles: 'ROLE_USER',
-        permissions: ''
+        roles: ['ROLE_USER'],
+        permissions: [] as string[]
     });
     const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -131,11 +139,14 @@ const UserManagement = () => {
         e.preventDefault();
         try {
             await authService.createUser({
-                ...formData,
-                permissions: formData.permissions ? formData.permissions : null
+                username: formData.username,
+                email: formData.email,
+                password: formData.password,
+                roles: formData.roles,
+                permissions: formData.permissions.length > 0 ? formData.permissions : null
             });
             setIsCreateDialogOpen(false);
-            setFormData({ username: '', email: '', password: '', roles: 'ROLE_USER', permissions: '' });
+            setFormData({ username: '', email: '', password: '', roles: ['ROLE_USER'], permissions: [] });
             toast({
                 title: "Thành công",
                 description: "Tạo người dùng thành công",
@@ -159,11 +170,11 @@ const UserManagement = () => {
             await authService.updateUser(editingUser.id, {
                 username: formData.username,
                 email: formData.email,
-                roles: formData.roles, // Cập nhật roles
-                permissions: formData.permissions ? formData.permissions : null // Cập nhật permissions, nếu rỗng thì gửi null
+                roles: formData.roles,
+                permissions: formData.permissions.length > 0 ? formData.permissions : null
             });
             setEditingUser(null);
-            setFormData({ username: '', email: '', password: '', roles: 'ROLE_USER', permissions: '' });
+            setFormData({ username: '', email: '', password: '', roles: ['ROLE_USER'], permissions: [] });
             toast({
                 title: "Thành công",
                 description: "Cập nhật thông tin thành công",
@@ -201,20 +212,12 @@ const UserManagement = () => {
 
     const openEditDialog = (user: User) => {
         setEditingUser(user);
-        // Xác định role hợp lệ từ user.roles (ưu tiên role cao nhất hoặc đầu tiên)
-        let currentRole = 'ROLE_USER';
-        if (user.roles) {
-            const rolesArr = Array.isArray(user.roles) ? user.roles : [user.roles];
-            if (rolesArr.includes('ROLE_ADMIN')) currentRole = 'ROLE_ADMIN';
-            else if (rolesArr.includes('ROLE_STAFF')) currentRole = 'ROLE_STAFF';
-            else if (rolesArr.length > 0) currentRole = rolesArr[0];
-        }
         setFormData({
             username: user.username,
             email: user.email,
             password: '',
-            roles: currentRole,
-            permissions: user.permissions || '' // Load current permissions
+            roles: user.roles || ['ROLE_USER'],
+            permissions: user.permissions || []
         });
     };
 
@@ -236,88 +239,93 @@ const UserManagement = () => {
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
 
-                    <ShadDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="gap-2">
-                                <UserPlus size={18} />
-                                Thêm người dùng
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                                <DialogTitle>Tạo người dùng mới</DialogTitle>
-                                <DialogDescription>
-                                    Nhập thông tin chi tiết cho tài khoản mới tại đây.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleCreate} className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Tên người dùng</Label>
-                                    <Input id="name" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} required />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="password">Mật khẩu</Label>
-                                    <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="role">Vai trò</Label>
-                                    <select
-                                        id="role"
-                                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        value={formData.roles}
-                                        onChange={(e) => setFormData({ ...formData, roles: e.target.value })}
-                                    >
-                                        <option value="ROLE_USER">Người dùng (USER)</option>
-                                        <option value="ROLE_STAFF">Nhân viên (STAFF)</option>
-                                        <option value="ROLE_ADMIN">Quản trị viên (ADMIN)</option>
-                                    </select>
-                                </div>
-                                {isCurrentUserAdmin && formData.roles === 'ROLE_STAFF' && (
+                    <PermissionGuard permission="user:create">
+                        <ShadDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="gap-2">
+                                    <UserPlus size={18} />
+                                    Thêm người dùng
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>Tạo người dùng mới</DialogTitle>
+                                    <DialogDescription>
+                                        Nhập thông tin chi tiết cho tài khoản mới tại đây.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleCreate} className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label>Quyền hạn (tùy chọn)</Label>
-                                        <div className="flex flex-wrap gap-4 mt-2">
-                                            {['user:read', 'user:create', 'user:update', 'user:delete'].map((perm) => (
-                                                <div key={perm} className="flex items-center space-x-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        id={`new-perm-${perm}`}
-                                                        className="h-4 w-4 rounded border-slate-300 text-slate-800 focus:ring-slate-800"
-                                                        checked={formData.permissions ? formData.permissions.split(',').includes(perm) : false}
-                                                        onChange={(e) => {
-                                                            const currentPerms = formData.permissions ? formData.permissions.split(',').filter(p => p !== '') : [];
-                                                            let newPerms;
-                                                            if (e.target.checked) {
-                                                                newPerms = [...currentPerms, perm];
-                                                            } else {
-                                                                newPerms = currentPerms.filter(p => p !== perm);
-                                                            }
-                                                            setFormData({ ...formData, permissions: newPerms.join(',') });
-                                                        }}
-                                                    />
-                                                    <label
-                                                        htmlFor={`new-perm-${perm}`}
-                                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                                    >
-                                                        {perm}
-                                                    </label>
+                                        <Label htmlFor="name">Tên người dùng</Label>
+                                        <Input id="name" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} required />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="email">Email</Label>
+                                        <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="password">Mật khẩu</Label>
+                                        <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="role">Vai trò</Label>
+                                        <select
+                                            id="role"
+                                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={formData.roles[0] || 'ROLE_USER'}
+                                            onChange={(e) => setFormData({ ...formData, roles: [e.target.value] })}
+                                        >
+                                            <option value="ROLE_USER">Người dùng (USER)</option>
+                                            <option value="ROLE_STAFF">Nhân viên (STAFF)</option>
+                                            <option value="ROLE_MANAGER">Quản lý (MANAGER)</option>
+                                            <option value="ROLE_ADMIN">Quản trị viên (ADMIN)</option>
+                                        </select>
+                                    </div>
+                                    {isCurrentUserAdmin && !['ROLE_USER', 'ROLE_ADMIN'].includes(formData.roles[0]) && (
+                                        <div className="grid gap-3 max-h-96 overflow-y-auto border rounded-lg p-3 bg-slate-50">
+                                            <Label className="text-base font-semibold">Quyền hạn bổ sung (tùy chọn)</Label>
+                                            {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
+                                                <div key={category} className="space-y-2">
+                                                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b pb-1">{category}</h4>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {permissions.map((perm) => (
+                                                            <div key={perm} className="flex items-center space-x-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    id={`new-perm-${perm}`}
+                                                                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                                    checked={formData.permissions.includes(perm)}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setFormData({ ...formData, permissions: [...formData.permissions, perm] });
+                                                                        } else {
+                                                                            setFormData({ ...formData, permissions: formData.permissions.filter(p => p !== perm) });
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <label
+                                                                    htmlFor={`new-perm-${perm}`}
+                                                                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                                >
+                                                                    {perm}
+                                                                </label>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             ))}
+                                            <p className="text-[10px] text-slate-500 mt-2 italic">
+                                                Chọn các quyền hạn bổ sung ngoài quyền mặc định của role. ROLE_ADMIN tự động có tất cả quyền.
+                                            </p>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-1">
-                                            Chọn các quyền hạn cụ thể để gán cho nhân viên này.
-                                        </p>
-                                    </div>
-                                )}
-                                <DialogFooter>
-                                    <Button type="submit">Lưu thay đổi</Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </ShadDialog>
+                                    )}
+                                    <DialogFooter>
+                                        <Button type="submit">Lưu thay đổi</Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </ShadDialog>
+                    </PermissionGuard>
                 </div>
             </div>
 
@@ -349,6 +357,7 @@ const UserManagement = () => {
                         >
                             <option value="">Tất cả vai trò</option>
                             <option value="ROLE_ADMIN">Quản trị viên (ADMIN)</option>
+                            <option value="ROLE_MANAGER">Quản lý (MANAGER)</option>
                             <option value="ROLE_STAFF">Nhân viên (STAFF)</option>
                             <option value="ROLE_USER">Người dùng (USER)</option>
                         </select>
@@ -397,11 +406,18 @@ const UserManagement = () => {
                                                     return rolesArray.length > 0 ? (
                                                         rolesArray.map((role, rIdx) => {
                                                             let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-                                                            if (role === 'ROLE_ADMIN') variant = "destructive";
-                                                            if (role === 'ROLE_STAFF') variant = "default"; // Use default (black/primary) for staff
+                                                            let className = "text-[10px]";
+                                                            if (role === 'ROLE_ADMIN') {
+                                                                variant = "destructive";
+                                                            } else if (role === 'ROLE_MANAGER') {
+                                                                variant = "default";
+                                                                className = "text-[10px] bg-purple-600 hover:bg-purple-700";
+                                                            } else if (role === 'ROLE_STAFF') {
+                                                                variant = "default";
+                                                            }
 
                                                             return (
-                                                                <Badge key={`${role}-${rIdx}`} variant={variant} className="text-[10px]">
+                                                                <Badge key={`${role}-${rIdx}`} variant={variant} className={className}>
                                                                     {role}
                                                                 </Badge>
                                                             );
@@ -411,43 +427,51 @@ const UserManagement = () => {
                                                     );
                                                 })()}
                                             </div>
-                                            {user.permissions && (
-                                                <div className="text-xs text-slate-500 font-mono">
-                                                    + {user.permissions.split(',').join(', ')}
+                                            {user.permissions && user.permissions.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {user.permissions.map((perm, pIdx) => (
+                                                        <Badge key={`perm-${pIdx}`} variant="outline" className="text-[9px] font-mono bg-blue-50 text-blue-700 border-blue-200">
+                                                            {perm}
+                                                        </Badge>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)}>
-                                                <Pencil size={16} className="text-slate-400 group-hover:text-blue-500" />
-                                            </Button>
+                                            <PermissionGuard permission="user:update">
+                                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)}>
+                                                    <Pencil size={16} className="text-slate-400 group-hover:text-blue-500" />
+                                                </Button>
+                                            </PermissionGuard>
 
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled={user.id === currentUser?.id}
-                                                        title={user.id === currentUser?.id ? "Bạn không thể tự xóa chính mình" : ""}
-                                                    >
-                                                        <Trash2 size={16} className={user.id === currentUser?.id ? "text-slate-200" : "text-slate-400 group-hover:text-red-500"} />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Bạn có chắc chắn không?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Hành động này không thể hoàn tác. Tài khoản <strong>{user.username}</strong> sẽ bị xóa vĩnh viễn khỏi hệ thống.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Hủy</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDelete(user.id)} className="bg-red-600 hover:bg-red-700">Xác nhận xóa</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                            <PermissionGuard permission="user:delete">
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            disabled={user.id === currentUser?.id}
+                                                            title={user.id === currentUser?.id ? "Bạn không thể tự xóa chính mình" : ""}
+                                                        >
+                                                            <Trash2 size={16} className={user.id === currentUser?.id ? "text-slate-200" : "text-slate-400 group-hover:text-red-500"} />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Bạn có chắc chắn không?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Hành động này không thể hoàn tác. Tài khoản <strong>{user.username}</strong> sẽ bị xóa vĩnh viễn khỏi hệ thống.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDelete(user.id)} className="bg-red-600 hover:bg-red-700">Xác nhận xóa</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </PermissionGuard>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -514,47 +538,50 @@ const UserManagement = () => {
                             <select
                                 id="edit-role"
                                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                value={formData.roles}
-                                onChange={(e) => setFormData({ ...formData, roles: e.target.value })}
+                                value={formData.roles[0] || 'ROLE_USER'}
+                                onChange={(e) => setFormData({ ...formData, roles: [e.target.value] })}
                             >
                                 <option value="ROLE_USER">Người dùng (USER)</option>
                                 <option value="ROLE_STAFF">Nhân viên (STAFF)</option>
+                                <option value="ROLE_MANAGER">Quản lý (MANAGER)</option>
                                 <option value="ROLE_ADMIN">Quản trị viên (ADMIN)</option>
                             </select>
                         </div>
-                        {isCurrentUserAdmin && formData.roles === 'ROLE_STAFF' && (
-                            <div className="grid gap-2">
-                                <Label>Quyền hạn (tùy chọn)</Label>
-                                <div className="flex flex-wrap gap-4 mt-2">
-                                    {['user:read', 'user:create', 'user:update', 'user:delete'].map((perm) => (
-                                        <div key={perm} className="flex items-center space-x-2">
-                                            <input
-                                                type="checkbox"
-                                                id={`perm-${perm}`}
-                                                className="h-4 w-4 rounded border-slate-300 text-slate-800 focus:ring-slate-800"
-                                                checked={formData.permissions ? formData.permissions.split(',').includes(perm) : false}
-                                                onChange={(e) => {
-                                                    const currentPerms = formData.permissions ? formData.permissions.split(',').filter(p => p !== '') : [];
-                                                    let newPerms;
-                                                    if (e.target.checked) {
-                                                        newPerms = [...currentPerms, perm];
-                                                    } else {
-                                                        newPerms = currentPerms.filter(p => p !== perm);
-                                                    }
-                                                    setFormData({ ...formData, permissions: newPerms.join(',') });
-                                                }}
-                                            />
-                                            <label
-                                                htmlFor={`perm-${perm}`}
-                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                            >
-                                                {perm}
-                                            </label>
+                        {isCurrentUserAdmin && !['ROLE_USER', 'ROLE_ADMIN'].includes(formData.roles[0]) && (
+                            <div className="grid gap-3 max-h-96 overflow-y-auto border rounded-lg p-3 bg-slate-50">
+                                <Label className="text-base font-semibold">Quyền hạn bổ sung (tùy chọn)</Label>
+                                {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
+                                    <div key={category} className="space-y-2">
+                                        <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide border-b pb-1">{category}</h4>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {permissions.map((perm) => (
+                                                <div key={perm} className="flex items-center space-x-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`edit-perm-${perm}`}
+                                                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                        checked={formData.permissions.includes(perm)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setFormData({ ...formData, permissions: [...formData.permissions, perm] });
+                                                            } else {
+                                                                setFormData({ ...formData, permissions: formData.permissions.filter(p => p !== perm) });
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label
+                                                        htmlFor={`edit-perm-${perm}`}
+                                                        className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                    >
+                                                        {perm}
+                                                    </label>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                                <p className="text-[11px] text-slate-400 mt-1">
-                                    Chọn các quyền hạn cụ thể để gán cho người dùng này.
+                                    </div>
+                                ))}
+                                <p className="text-[10px] text-slate-500 mt-2 italic">
+                                    Chọn các quyền hạn bổ sung ngoài quyền mặc định của role. ROLE_ADMIN tự động có tất cả quyền.
                                 </p>
                             </div>
                         )}

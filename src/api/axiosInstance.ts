@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from '../stores/authStore';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
@@ -6,7 +7,7 @@ const api = axios.create({
 
 // Gắn token vào request
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = useAuthStore.getState().getAccessToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -21,14 +22,14 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
             try {
-                const refreshToken = localStorage.getItem('refreshToken');
+                const refreshToken = useAuthStore.getState().getRefreshToken();
                 const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/refresh`, { refreshToken });
-                localStorage.setItem('accessToken', res.data.accessToken);
+                useAuthStore.getState().setTokens(res.data.accessToken, res.data.refreshToken);
                 originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
                 return api(originalRequest);
             } catch (refreshError) {
                 // Nếu refresh cũng lỗi (hết hạn hoàn toàn), đăng xuất
-                localStorage.clear();
+                useAuthStore.getState().logout();
                 window.location.href = '/login';
                 return Promise.reject(refreshError);
             }

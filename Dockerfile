@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine as build
+FROM node:20-alpine as build
 
 WORKDIR /app
 
@@ -13,12 +13,15 @@ ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Production stage  
+FROM node:20-alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
+
+RUN npm install -g serve
+
+COPY --from=build /app/dist /app/dist
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["serve", "-s", "dist", "-l", "80"]

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuthStore } from '@/stores/authStore';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -19,8 +20,7 @@ const LoginPage = () => {
         setLoading(true);
         try {
             const response = await authService.login({ email, password });
-            localStorage.setItem('accessToken', response.data.accessToken);
-            localStorage.setItem('refreshToken', response.data.refreshToken);
+            useAuthStore.getState().setTokens(response.data.accessToken, response.data.refreshToken);
             toast({
                 title: "Đăng nhập thành công",
                 description: "Chào mừng bạn quay trở lại!",

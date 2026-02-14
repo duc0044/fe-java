@@ -1,13 +1,21 @@
+
 version: '3.8'
 
 services:
   fe-java:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       args:
         - VITE_API_URL=http://localhost:8080
     container_name: fe_java
     ports:
-      - "3000:80"
-    restart: always
+      - "3000:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8080
+      - DOCKER_ENV=true
+    restart: no
+    command: npm run dev -- --host

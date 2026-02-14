@@ -12,12 +12,18 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
-    open: true,
-    strictPort: true,
+    port: 5173,
+    host: '0.0.0.0',
+    strictPort: false,
+    open: false,
+    hmr: process.env.DOCKER_ENV === 'true' ? {
+      host: 'localhost',
+      port: 3000,
+      protocol: 'ws',
+    } : undefined,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8080',
+        target: process.env.VITE_API_URL || 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
       }

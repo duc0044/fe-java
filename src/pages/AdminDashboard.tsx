@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { authService } from '@/services/authService';
+import { useAuthStore } from '@/stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { hasPermission, hasPermissionFromApi } from '@/lib/permissions';
+import type { Role } from '@/lib/permissions';
 
 interface DashboardSummary {
     totalUsers: number;
@@ -12,6 +15,17 @@ interface DashboardSummary {
 const AdminDashboard = () => {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [loading, setLoading] = useState(true);
+    const { userProfile } = useAuthStore();
+
+    const userRoles = (Array.isArray(userProfile?.roles) ? userProfile?.roles : [userProfile?.roles]) as Role[];
+
+    // Helper function để kiểm tra quyền (ưu tiên API permissions)
+    const checkPermission = (permission: string): boolean => {
+        if (userProfile?.permissions && Array.isArray(userProfile.permissions)) {
+            return hasPermissionFromApi(userProfile.permissions, permission);
+        }
+        return hasPermission(userRoles, permission);
+    };
 
     useEffect(() => {
         const fetchSummary = async () => {
@@ -75,6 +89,44 @@ const AdminDashboard = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            {checkPermission('audit:read') && (
+                <Card className="border-slate-200 shadow-sm bg-purple-50 border-purple-200">
+                    <CardHeader>
+                        <CardTitle className="text-lg text-purple-900">🔒 Audit Log (Chỉ Admin)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-sm text-purple-700">
+                            <p className="mb-2">Các hành động được ghi nhận:</p>
+                            <ul className="list-disc list-inside space-y-1 text-xs">
+                                <li>Đăng nhập/Đăng xuất người dùng</li>
+                                <li>Thay đổi role và quyền</li>
+                                <li>Tạo/Xóa tài khoản</li>
+                                <li>Truy cập các tài nguyên bị hạn chế</li>
+                            </ul>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {checkPermission('system:config') && (
+                <Card className="border-slate-200 shadow-sm bg-red-50 border-red-200">
+                    <CardHeader>
+                        <CardTitle className="text-lg text-red-900">⚙️ Cài đặt hệ thống (Chỉ Admin)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-sm text-red-700">
+                            <p className="font-bold mb-2">Quyền truy cập:</p>
+                            <ul className="list-disc list-inside space-y-1 text-xs">
+                                <li>Thay đổi cấu hình hệ thống</li>
+                                <li>Quản lý cơ sở dữ liệu</li>
+                                <li>Cấu hình bảo mật</li>
+                                <li>Quản lý tích hợp API</li>
+                            </ul>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 };

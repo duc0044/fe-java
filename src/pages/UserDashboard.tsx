@@ -1,22 +1,20 @@
 import { useEffect, useState } from 'react';
 import { authService } from '@/services/authService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface UserProfile {
-    id: number;
-    email: string;
-    username: string;
-}
+import { useAuthStore } from '@/stores/authStore';
+import type { UserProfile } from '@/stores/authStore';
 
 const UserDashboard = () => {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const { userProfile } = useAuthStore();
 
     useEffect(() => {
         const fetchProfile = async () => {
             try {
                 const res = await authService.getProfile();
                 setProfile(res.data);
+                useAuthStore.getState().setUserProfile(res.data);
             } catch (error) {
                 console.error('Lỗi khi tải profile:', error);
             } finally {
@@ -28,14 +26,17 @@ const UserDashboard = () => {
 
     if (loading) return <div className="text-center py-10">Đang tải thông tin cá nhân...</div>;
 
+    const displayProfile = profile || userProfile;
+    const username = displayProfile?.username || 'Người dùng';
+
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center gap-6 mb-8">
                 <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center text-3xl font-bold text-white shadow-xl shadow-blue-200">
-                    {profile?.username?.substring(0, 2).toUpperCase()}
+                    {username.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                    <h2 className="text-3xl font-black text-slate-800">Xin chào, {profile?.username}!</h2>
+                    <h2 className="text-3xl font-black text-slate-800">Xin chào, {username}!</h2>
                     <p className="text-slate-500 font-medium">Chúc bạn một ngày làm việc hiệu quả.</p>
                 </div>
             </div>
@@ -48,11 +49,11 @@ const UserDashboard = () => {
                     <CardContent className="space-y-4">
                         <div className="flex justify-between py-2 border-b border-slate-50">
                             <span className="text-slate-500 font-medium">Email</span>
-                            <span className="text-slate-800 font-bold">{profile?.email}</span>
+                            <span className="text-slate-800 font-bold">{displayProfile?.email || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-slate-50">
                             <span className="text-slate-500 font-medium">Mã số</span>
-                            <span className="text-slate-800 font-mono font-bold">#{profile?.id}</span>
+                            <span className="text-slate-800 font-mono font-bold">#{displayProfile?.id || 'N/A'}</span>
                         </div>
                     </CardContent>
                 </Card>
@@ -81,7 +82,7 @@ const UserDashboard = () => {
                 </CardHeader>
                 <CardContent>
                     <div className="bg-slate-800 p-4 rounded-xl font-mono text-[10px] break-all leading-relaxed text-blue-300">
-                        {localStorage.getItem('accessToken')}
+                        {useAuthStore.getState().getAccessToken()}
                     </div>
                 </CardContent>
             </Card>
