@@ -39,7 +39,11 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
 
   let hasAccess = true;
 
-  if (permission) {
+  // Admin có toàn quyền
+  const isAdmin = userRoles.includes('ROLE_ADMIN');
+  if (isAdmin) {
+    hasAccess = true;
+  } else if (permission) {
     // Ưu tiên kiểm tra permissions từ API trước
     if (userProfile?.permissions && Array.isArray(userProfile.permissions)) {
       hasAccess = userProfile.permissions.includes(permission);

@@ -40,7 +40,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
 
     // Lọc menu items dựa trên quyền từ API hoặc role
     const userRoles = (Array.isArray(userProfile?.roles) ? userProfile?.roles : [userProfile?.roles]) as Role[];
+    const isAdmin = userRoles.includes('ROLE_ADMIN');
+
     const menuItems = allMenuItems.filter(item => {
+        // Admin có toàn quyền - hiển thị tất cả menu
+        if (isAdmin) return true;
+
         if (!item.requiredPermission && !item.requiredRole) return true;
 
         // Ưu tiên kiểm tra permissions từ API trước
