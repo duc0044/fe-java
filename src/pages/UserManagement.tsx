@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { authService } from '@/services/authService';
 import { useToast } from "@/hooks/use-toast";
 import { PermissionGuard } from '@/components/PermissionGuard';
+import { AuthenticatedImage } from '@/components/AuthenticatedImage';
 import {
     Table,
     TableBody,
@@ -36,13 +37,14 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UserPlus, Pencil, Trash2, RefreshCw, Search, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { UserPlus, Pencil, Trash2, RefreshCw, Search, ChevronLeft, ChevronRight, Filter, Upload, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface User {
     id: number;
     username: string;
     email: string;
+    avatarUrl?: string;
     roles?: string[];
     permissions?: string[];
 }
@@ -77,6 +79,11 @@ const UserManagement = () => {
         permissions: [] as string[]
     });
     const [currentUser, setCurrentUser] = useState<any>(null);
+
+    // Avatar upload state
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [selectedAvatarUser, setSelectedAvatarUser] = useState<User | null>(null);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
     const fetchProfile = async () => {
         try {
@@ -202,6 +209,51 @@ const UserManagement = () => {
             fetchUsers();
         } catch (error: any) {
             const message = error.response?.data?.message || "Lỗi khi xóa người dùng";
+            toast({
+                title: "Lỗi",
+                description: message,
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleAvatarUpload = async () => {
+        if (!avatarFile || !selectedAvatarUser) return;
+
+        setUploadingAvatar(true);
+        try {
+            await authService.uploadAvatar(selectedAvatarUser.id, avatarFile);
+            toast({
+                title: "Thành công",
+                description: "Đã cập nhật avatar",
+                variant: "success",
+            });
+            setSelectedAvatarUser(null);
+            setAvatarFile(null);
+            fetchUsers();
+        } catch (error: any) {
+            const message = error.response?.data?.message || "Lỗi khi upload avatar";
+            toast({
+                title: "Lỗi",
+                description: message,
+                variant: "destructive",
+            });
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
+    const handleDeleteAvatar = async (userId: number) => {
+        try {
+            await authService.deleteAvatar(userId);
+            toast({
+                title: "Thành công",
+                description: "Đã xóa avatar",
+                variant: "success",
+            });
+            fetchUsers();
+        } catch (error: any) {
+            const message = error.response?.data?.message || "Lỗi khi xóa avatar";
             toast({
                 title: "Lỗi",
                 description: message,
@@ -370,6 +422,7 @@ const UserManagement = () => {
                     <TableHeader className="bg-slate-50">
                         <TableRow>
                             <TableHead className="w-[80px]">ID</TableHead>
+                            <TableHead className="w-[80px]">Avatar</TableHead>
                             <TableHead>Người dùng</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Vai trò & Quyền</TableHead>
@@ -379,13 +432,13 @@ const UserManagement = () => {
                     <TableBody>
                         {loading ? (
                             <TableRow key="loading">
-                                <TableCell colSpan={5} className="text-center py-10 text-slate-400 font-medium">
+                                <TableCell colSpan={6} className="text-center py-10 text-slate-400 font-medium">
                                     Đang tải dữ liệu...
                                 </TableCell>
                             </TableRow>
                         ) : users.length === 0 ? (
                             <TableRow key="empty">
-                                <TableCell colSpan={5} className="text-center py-10 text-slate-400 font-medium">
+                                <TableCell colSpan={6} className="text-center py-10 text-slate-400 font-medium">
                                     Không tìm thấy người dùng nào
                                 </TableCell>
                             </TableRow>
@@ -393,6 +446,21 @@ const UserManagement = () => {
                             users.map((user, idx) => (
                                 <TableRow key={`user-row-${idx}`} className="hover:bg-slate-50/50 transition-colors">
                                     <TableCell className="font-mono font-bold text-slate-400">#{user.id}</TableCell>
+                                    <TableCell>
+                                        <div className="relative w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center">
+                                            {user.avatarUrl ? (
+                                                <AuthenticatedImage
+                                                    src={authService.getAvatarUrl(user.avatarUrl) || undefined}
+                                                    alt={user.username}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <span className="text-slate-500 font-semibold text-sm">
+                                                    {(user.username || 'U').charAt(0).toUpperCase()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </TableCell>
                                     <TableCell className="font-bold text-slate-700">{user.username || (user as any).userName || "N/A"}</TableCell>
                                     <TableCell className="text-slate-500 font-medium">{user.email || (user as any).userEmail || "N/A"}</TableCell>
                                     <TableCell>
@@ -443,6 +511,17 @@ const UserManagement = () => {
                                             <PermissionGuard permission="user:update">
                                                 <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)}>
                                                     <Pencil size={16} className="text-slate-400 group-hover:text-blue-500" />
+                                                </Button>
+                                            </PermissionGuard>
+
+                                            <PermissionGuard permission="user:update">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setSelectedAvatarUser(user)}
+                                                    title="Upload avatar"
+                                                >
+                                                    <Upload size={16} className="text-slate-400 group-hover:text-green-500" />
                                                 </Button>
                                             </PermissionGuard>
 
@@ -589,6 +668,97 @@ const UserManagement = () => {
                             <Button type="submit">Cập nhật</Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </ShadDialog>
+
+            {/* Avatar Upload Dialog */}
+            <ShadDialog open={!!selectedAvatarUser} onOpenChange={(open) => {
+                if (!open) {
+                    setSelectedAvatarUser(null);
+                    setAvatarFile(null);
+                }
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Upload Avatar - {selectedAvatarUser?.username}</DialogTitle>
+                        <DialogDescription>
+                            Chọn ảnh avatar cho người dùng (tối đa 10MB)
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {/* Current Avatar Preview */}
+                        {selectedAvatarUser?.avatarUrl && (
+                            <div className="flex flex-col items-center gap-2">
+                                <Label>Avatar hiện tại:</Label>
+                                <div className="relative w-24 h-24 rounded-full overflow-hidden bg-slate-200">
+                                    <AuthenticatedImage
+                                        src={authService.getAvatarUrl(selectedAvatarUser.avatarUrl) || undefined}
+                                        alt={selectedAvatarUser.username}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        if (selectedAvatarUser) {
+                                            handleDeleteAvatar(selectedAvatarUser.id);
+                                            setSelectedAvatarUser(null);
+                                        }
+                                    }}
+                                >
+                                    <X size={14} className="mr-1" /> Xóa avatar
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* File Input */}
+                        <div>
+                            <Label htmlFor="avatar-file">Chọn ảnh mới:</Label>
+                            <Input
+                                id="avatar-file"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        if (file.size > 10 * 1024 * 1024) {
+                                            toast({
+                                                title: "Lỗi",
+                                                description: "File không được vượt quá 10MB",
+                                                variant: "destructive",
+                                            });
+                                            return;
+                                        }
+                                        setAvatarFile(file);
+                                    }
+                                }}
+                                className="mt-1"
+                            />
+                        </div>
+
+                        {/* Preview New Avatar */}
+                        {avatarFile && (
+                            <div className="flex flex-col items-center gap-2">
+                                <Label>Xem trước:</Label>
+                                <div className="relative w-24 h-24 rounded-full overflow-hidden bg-slate-200">
+                                    <img
+                                        src={URL.createObjectURL(avatarFile)}
+                                        alt="Preview"
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            onClick={handleAvatarUpload}
+                            disabled={!avatarFile || uploadingAvatar}
+                        >
+                            {uploadingAvatar ? "Đang upload..." : "Upload"}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </ShadDialog>
         </div>

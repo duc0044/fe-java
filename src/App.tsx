@@ -8,6 +8,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import UserManagement from './pages/UserManagement';
 import PermissionManagement from './pages/PermissionManagement';
 import RoleManagement from './pages/RoleManagement';
+import OrderManagement from './pages/OrderManagement';
 import UserLayout from './layouts/UserLayout';
 import AdminLayout from './layouts/AdminLayout';
 import { authService } from './services/authService';
@@ -19,13 +20,19 @@ import type { UserProfile } from '@/stores/authStore';
 const ProtectedLayout = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated, initializeAuth } = useAuthStore();
+  const { isAuthenticated, isInitialized, initializeAuth } = useAuthStore();
 
   useEffect(() => {
     initializeAuth();
-  }, []);
+  }, [initializeAuth]);
 
   useEffect(() => {
+    // Wait for initialization to complete
+    if (!isInitialized) {
+      return;
+    }
+
+    // If not authenticated after initialization, stop loading
     if (!isAuthenticated) {
       setLoading(false);
       return;
@@ -45,8 +52,10 @@ const ProtectedLayout = ({ children, requireAdmin = false }: { children: React.R
     };
 
     fetchProfile();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isInitialized]);
 
+  // Wait for initialization before showing login redirect
+  if (!isInitialized) return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-medium text-slate-500">Initializing...</div>;
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-medium text-slate-500">Đang khởi tạo ứng dụng...</div>;
   if (!profile) return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-medium text-slate-500">Đang tải thông tin...</div>;
@@ -100,6 +109,7 @@ function App() {
               <Routes>
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="users" element={<UserManagement />} />
+                <Route path="orders" element={<OrderManagement />} />
                 <Route path="permissions" element={<PermissionManagement />} />
                 <Route path="roles" element={<RoleManagement />} />
                 <Route path="settings" element={<div className="p-6 bg-white rounded-2xl shadow-sm border border-slate-200">Cài đặt hệ thống (Coming Soon)</div>} />

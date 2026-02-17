@@ -38,5 +38,25 @@ export const authService = {
     },
     deleteUser: async (id: number) => {
         return api.delete(`/api/users/${id}`);
+    },
+
+    // Avatar Management
+    uploadAvatar: async (userId: number, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post(`/api/users/${userId}/avatar`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    },
+    deleteAvatar: async (userId: number) => {
+        return api.delete(`/api/users/${userId}/avatar`);
+    },
+    getAvatarUrl: (avatarUrl?: string) => {
+        if (!avatarUrl) return null;
+        // avatarUrl format: "avatars/user-{id}/filename.png"
+        // Convert to: "/api/files/download?path=avatars/user-{id}/filename.png"
+        return `${import.meta.env.VITE_API_URL}/api/files/download?path=${encodeURIComponent(avatarUrl)}`;
     }
 };

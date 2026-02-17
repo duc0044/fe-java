@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { authService } from "@/services/authService";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, Settings, LogOut, ShieldCheck, Key, Shield } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, ShieldCheck, Key, Shield, ShoppingCart } from "lucide-react";
 import { hasMinimumRole, getRoleLabel } from "@/lib/permissions";
 import type { Role } from "@/lib/permissions";
 
@@ -33,6 +33,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
     const allMenuItems: MenuItem[] = [
         { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
         { name: "Người dùng", icon: Users, path: "/admin/users", requiredPermission: "user:create" },
+        { name: "Đơn hàng", icon: ShoppingCart, path: "/admin/orders", requiredPermission: "order:read" },
         { name: "Vai trò", icon: Shield, path: "/admin/roles", requiredPermission: "role:manage" },
         { name: "Quyền hạn", icon: Key, path: "/admin/permissions", requiredPermission: "role:manage" },
         { name: "Cài đặt", icon: Settings, path: "/admin/settings", requiredPermission: "system:config" },
