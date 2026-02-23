@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { authService } from "@/services/authService";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
+import { AuthenticatedImage } from "@/components/AuthenticatedImage";
 import { LayoutDashboard, Users, Settings, LogOut, ShieldCheck, Key, Shield, ShoppingCart } from "lucide-react";
 import { hasMinimumRole, getRoleLabel } from "@/lib/permissions";
 import type { Role } from "@/lib/permissions";
@@ -42,6 +43,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
     // Lọc menu items dựa trên quyền từ API hoặc role
     const userRoles = (Array.isArray(userProfile?.roles) ? userProfile?.roles : [userProfile?.roles]) as Role[];
     const isAdmin = userRoles.includes('ROLE_ADMIN');
+    const avatarUrl = userProfile?.avatarUrl ? authService.getAvatarUrl(userProfile.avatarUrl) : null;
 
     const menuItems = allMenuItems.filter(item => {
         // Admin có toàn quyền - hiển thị tất cả menu
@@ -67,40 +69,59 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
     });
 
     return (
-        <div className="min-h-screen bg-slate-50 flex">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex">
             {/* Sidebar */}
-            <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col sticky top-0 h-screen shadow-xl">
-                <div className="p-6 flex items-center gap-3">
-                    <div className="bg-indigo-500 p-2 rounded-lg">
+            <aside className="w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-slate-300 flex flex-col sticky top-0 h-screen shadow-2xl">
+                <div className="p-6 flex items-center gap-3 border-b border-slate-700/50">
+                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2.5 rounded-2xl shadow-lg shadow-indigo-500/30">
                         <ShieldCheck className="text-white h-6 w-6" />
                     </div>
-                    <span className="text-xl font-bold text-white tracking-tight">AdminPanel</span>
+                    <div>
+                        <span className="text-xl font-black text-white tracking-tight">AdminPanel</span>
+                        <p className="text-xs text-slate-400 font-medium">Control Center</p>
+                    </div>
                 </div>
 
-                <nav className="flex-1 px-4 py-4 space-y-1">
+                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                     {menuItems.map((item) => (
                         <Link
                             key={item.path}
                             to={item.path}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === item.path
-                                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+                            className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 group ${location.pathname === item.path
+                                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/30"
                                 : "hover:bg-slate-800 hover:text-white"
                                 }`}
                         >
                             <item.icon size={20} />
-                            <span className="font-medium">{item.name}</span>
+                            <span className="font-semibold">{item.name}</span>
                         </Link>
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-slate-800">
-                    <div className="flex items-center gap-3 px-4 py-3 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white uppercase">
-                            {username?.substring(0, 2) || "AD"}
+                <div className="p-4 border-t border-slate-700/50 bg-slate-900/50">
+                    <div className="flex items-center gap-3 px-4 py-3 mb-3 bg-slate-800/50 rounded-2xl">
+                        {/* Avatar */}
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-indigo-400/50 shadow-lg">
+                            {avatarUrl ? (
+                                <AuthenticatedImage
+                                    src={avatarUrl}
+                                    alt={username || "Admin"}
+                                    className="w-full h-full object-cover"
+                                    fallback={
+                                        <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-sm">
+                                            {(username || "AD").substring(0, 2).toUpperCase()}
+                                        </div>
+                                    }
+                                />
+                            ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-sm">
+                                    {(username || "AD").substring(0, 2).toUpperCase()}
+                                </div>
+                            )}
                         </div>
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-bold text-white truncate">{username}</p>
-                            <p className="text-xs text-slate-500">{userProfile && getRoleLabel(userRoles[0] || 'ROLE_USER')}</p>
+                            <p className="text-xs text-slate-400 font-medium truncate">{userProfile && getRoleLabel(userRoles[0] || 'ROLE_USER')}</p>
                         </div>
                     </div>
                     <Button

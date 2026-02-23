@@ -5,7 +5,7 @@ interface AuthenticatedImageProps {
   src?: string;
   alt: string;
   className?: string;
-  fallback?: string;
+  fallback?: React.ReactNode;
 }
 
 /**
@@ -16,16 +16,19 @@ export const AuthenticatedImage = ({
   src,
   alt,
   className,
-  fallback = ''
+  fallback
 }: AuthenticatedImageProps) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const { getAccessToken } = useAuthStore();
 
   useEffect(() => {
     if (!src) {
+      setLoading(false);
       return;
     }
 
+    setLoading(true);
     const loadImage = async () => {
       try {
         const token = getAccessToken();
@@ -43,9 +46,11 @@ export const AuthenticatedImage = ({
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         setImageUrl(url);
+        setLoading(false);
       } catch (error) {
         console.error('Error loading authenticated image:', error);
         setImageUrl(null);
+        setLoading(false);
       }
     };
 
@@ -59,8 +64,9 @@ export const AuthenticatedImage = ({
     };
   }, [src, getAccessToken]);
 
-  if (!src || !imageUrl) {
-    return fallback ? <img src={fallback} alt={alt} className={className} /> : null;
+  // Show fallback if loading, no src, or failed to load
+  if (loading || !src || !imageUrl) {
+    return <>{fallback}</>;
   }
 
   return (
