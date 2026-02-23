@@ -9,6 +9,7 @@ import UserManagement from './pages/UserManagement';
 import PermissionManagement from './pages/PermissionManagement';
 import RoleManagement from './pages/RoleManagement';
 import OrderManagement from './pages/OrderManagement';
+import ProfilePage from './pages/ProfilePage';
 import UserLayout from './layouts/UserLayout';
 import AdminLayout from './layouts/AdminLayout';
 import { authService } from './services/authService';
@@ -92,6 +93,15 @@ function App() {
           element={
             <ProtectedLayout>
               <UserDashboard />
+            </ProtectedLayout>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedLayout>
+              <ProfilePage />
             </ProtectedLayout>
           }
         />

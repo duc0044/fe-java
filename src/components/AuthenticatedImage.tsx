@@ -25,10 +25,13 @@ export const AuthenticatedImage = ({
   useEffect(() => {
     if (!src) {
       setLoading(false);
+      setImageUrl(null);
       return;
     }
 
     setLoading(true);
+    setImageUrl(null);
+
     const loadImage = async () => {
       try {
         const token = getAccessToken();
@@ -55,14 +58,16 @@ export const AuthenticatedImage = ({
     };
 
     loadImage();
+  }, [src, getAccessToken]);
 
-    // Cleanup blob URL
+  // Cleanup blob URL on unmount
+  useEffect(() => {
     return () => {
       if (imageUrl) {
         URL.revokeObjectURL(imageUrl);
       }
     };
-  }, [src, getAccessToken]);
+  }, [imageUrl]);
 
   // Show fallback if loading, no src, or failed to load
   if (loading || !src || !imageUrl) {

@@ -4,7 +4,7 @@ import { authService } from "@/services/authService";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { AuthenticatedImage } from "@/components/AuthenticatedImage";
-import { LayoutDashboard, Users, Settings, LogOut, ShieldCheck, Key, Shield, ShoppingCart } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, ShieldCheck, Key, Shield, ShoppingCart, Home, User } from "lucide-react";
 import { hasMinimumRole, getRoleLabel } from "@/lib/permissions";
 import type { Role } from "@/lib/permissions";
 
@@ -32,7 +32,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
     };
 
     const allMenuItems: MenuItem[] = [
-        { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+        // User Features
+        { name: "Home", icon: Home, path: "/" },
+        { name: "Profile", icon: User, path: "/profile" },
+
+        // Admin Features
+        { name: "Admin Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
         { name: "Người dùng", icon: Users, path: "/admin/users", requiredPermission: "user:create" },
         { name: "Đơn hàng", icon: ShoppingCart, path: "/admin/orders", requiredPermission: "order:read" },
         { name: "Vai trò", icon: Shield, path: "/admin/roles", requiredPermission: "role:manage" },
@@ -99,7 +104,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
                 </nav>
 
                 <div className="p-4 border-t border-slate-700/50 bg-slate-900/50">
-                    <div className="flex items-center gap-3 px-4 py-3 mb-3 bg-slate-800/50 rounded-2xl">
+                    <button
+                        onClick={() => navigate('/profile')}
+                        className="w-full flex items-center gap-3 px-4 py-3 mb-3 bg-slate-800/50 rounded-2xl hover:bg-slate-700/70 transition-colors cursor-pointer"
+                    >
                         {/* Avatar */}
                         <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-indigo-400/50 shadow-lg">
                             {avatarUrl ? (
@@ -123,7 +131,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, username }) => {
                             <p className="text-sm font-bold text-white truncate">{username}</p>
                             <p className="text-xs text-slate-400 font-medium truncate">{userProfile && getRoleLabel(userRoles[0] || 'ROLE_USER')}</p>
                         </div>
-                    </div>
+                    </button>
                     <Button
                         variant="ghost"
                         className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-slate-800"

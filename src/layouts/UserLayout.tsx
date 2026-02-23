@@ -43,7 +43,10 @@ const UserLayout: React.FC<UserLayoutProps> = ({ children, username }) => {
                 </div>
                 <div className="flex items-center gap-4">
                     {/* User Info with Avatar */}
-                    <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-slate-100 to-slate-50 rounded-xl border border-slate-200">
+                    <button
+                        onClick={() => navigate('/profile')}
+                        className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-slate-100 to-slate-50 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 cursor-pointer"
+                    >
                         {/* Avatar */}
                         <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-blue-200 shadow-md">
                             {avatarUrl ? (
@@ -68,7 +71,7 @@ const UserLayout: React.FC<UserLayoutProps> = ({ children, username }) => {
                             <span className="text-sm font-semibold text-slate-700">{username || "User"}</span>
                             <span className="text-xs text-slate-500 font-medium">{roleLabel}</span>
                         </div>
-                    </div>
+                    </button>
                     <Button
                         variant="ghost"
                         size="sm"
